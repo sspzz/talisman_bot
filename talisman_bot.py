@@ -92,19 +92,19 @@ async def show_leaderboard(ctx):
 		return res
 	usernames = await get_users(lb)
 
-	lines = list(map(lambda e: "**{}.** {} - {} {} Rites".format(lb.index(e)+1, usernames[e[0]], djinn_emoji, e[1]), lb))
-	await DiscordUtils.embed(ctx=ctx, title="Leaderboard", description="\n".join(lines))
+	lines = list(map(lambda e: "**{}.** {} - {} {} Rites".format(lb.index(e)+1, usernames[e[0]].name, djinn_emoji, e[1]), lb))
+	await DiscordUtils.embed(ctx=ctx, title="🏆 Leaderboard", description="\n".join(lines))
 
 
 @bot.command(name="rank", aliases=["bal", "balance"])
 async def show_rank(ctx):
-	rankings = leaderboard.rankings(ctx.guild.id)
-	user = [rank for rank in rankings if rank[0] == ctx.message.author.id][0]
-	if user is not None:
+	user_ranking = leaderboard.user(ctx.guild.id, ctx.message.author.id)
+	if user_ranking is not None:
 		user_avatar = ctx.message.author.avatar_url
-		user_name = await bot.fetch_user(user[0])
-		user_score = user[1]
-		user_rank = rankings.index(user)+1
+		user = await bot.fetch_user(user_ranking.user_id)
+		user_name = user.name
+		user_score = user_ranking.balance
+		user_rank = user_ranking.rank
 		fields = [("Balance", "{} {} Rites".format(djinn_emoji, user_score))]
 		await DiscordUtils.embed_fields(ctx=ctx,
 										title=user_name, 
@@ -132,7 +132,7 @@ async def bestow(ctx, num, mentions):
 
 	for user in ctx.message.mentions:
 		leaderboard.grant_points(user.id, num, ctx.guild.id)
-		await ctx.send("{} has been bestowed {} {} Rites".format(user, djinn_emoji, num))
+		await ctx.send("{} has been bestowed {} {} Rites".format(user.name, djinn_emoji, num))
 
 
 @bot.command(name="offering", aliases=["offer"])
@@ -167,6 +167,45 @@ async def offering(ctx, num=None):
 	except asyncio.TimeoutError:
 		bot.comp_running = False
 		await ctx.send('Too slow.')
+
+
+@bot.command(name="gift")
+async def gift(ctx, num=None):
+	# Ensure that we get a correct number of Rites to gift
+	if num is None:
+		await ctx.send("You must specify number of {} Rites to gift!".format(djinn_emoji))
+		return
+	else:
+		try:
+			num = int(num)
+			if num < 1:
+				await ctx.send("You must specify a positive number of {} Rites to gift!".format(djinn_emoji))
+		except:
+			await ctx.send("You must specify a correct number of {} Rites to gift!".format(djinn_emoji))
+			return
+
+	# Ensure gifter has Rites
+	gifter = leaderboard.user(ctx.guild.id, ctx.message.author.id)
+	if gifter is None:
+		await ctx.send("You have no {} Rites to gift!".format(djinn_emoji))
+		return
+
+	# Ensure we have recipients
+	recipients = list(map(lambda m: m, ctx.message.mentions))
+	if len(recipients) < 1:
+		await ctx.send("Please specify to whom I should bestow {} Rites.".format(djinn_emoji))
+		return
+
+	# Ensure enough Rites to gift
+	if gifter.balance < len(recipients) * num:
+		await ctx.send("You have not enough {} Rites to gift!".format(djinn_emoji))
+		return
+
+	for recipient in recipients:
+		leaderboard.grant_points(recipient.id, num, ctx.guild.id)
+		leaderboard.grant_points(gifter.user_id, -num, ctx.guild.id)
+		await ctx.send("{} has been bestowed {} {} Rites".format(recipient.name, djinn_emoji, num))
+
 
 
 @bot.command(name="riddle")

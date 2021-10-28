@@ -158,9 +158,7 @@ async def offering(ctx, num=None):
 		botmsg = await ctx.send("Hurry now, first {} is bestowed {} Rites.".format(djinn_emoji, num))
 		# await botmsg.add_reaction(djinn_emoji)
 
-		def verify_emoji(reaction, user):
-			return str(reaction.emoji) == djinn_emoji
-
+		verify_emoji = lambda r, u: str(r.emoji) == djinn_emoji
 		reaction, user = await bot.wait_for('reaction_add', timeout=15.0, check=verify_emoji)
 		bot.comp_running = False
 		leaderboard.grant_points(user.id, num, ctx.guild.id)
@@ -179,7 +177,6 @@ async def riddle(ctx, num=None):
 		riddle, answer = random.choice(list(riddles.items()))
 	except:
 		return
-
 
 	if bot.comp_running:
 		await ctx.send("A Rite is already being performed.")
@@ -201,9 +198,7 @@ async def riddle(ctx, num=None):
 		botmsg = await ctx.send("Riddle me this: \"{}\" First right answer is bestowed {} {} Rites.".format(riddle, djinn_emoji, num))
 		# await botmsg.add_reaction(djinn_emoji)
 
-		def verify_message(message):
-			return message.content.lower() == answer.lower()
-
+		verify_message = lambda m: m.content.lower() == answer.lower()
 		msg = await bot.wait_for('message', timeout=15.0, check=verify_message)
 		user = msg.author
 		bot.comp_running = False
